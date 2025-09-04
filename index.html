@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Expense Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Bootstrap CDN -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+
+<div class="container py-4">
+  <h1 class="text-center mb-4">💸 Expense Tracker</h1>
+
+  <form id="expense-form" class="card card-body shadow-sm mb-4">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <input type="number" class="form-control" id="amount" placeholder="Amount" required>
+      </div>
+      <div class="col-md-4">
+        <input type="text" class="form-control" id="category" placeholder="Category" required>
+      </div>
+      <div class="col-md-4">
+        <input type="date" class="form-control" id="date" required>
+      </div>
+      <div class="col-12">
+        <input type="text" class="form-control" id="description" placeholder="Description (optional)">
+      </div>
+      <div class="col-12 text-end">
+        <button type="submit" class="btn btn-success">Add Expense</button>
+      </div>
+    </div>
+  </form>
+
+  <div class="card card-body shadow-sm mb-4">
+    <h5>📅 Filter & Sort</h5>
+    <div class="row g-2">
+      <div class="col-md-4">
+        <input type="date" class="form-control" id="from">
+      </div>
+      <div class="col-md-4">
+        <input type="date" class="form-control" id="to">
+      </div>
+      <div class="col-md-4">
+        <select class="form-select" id="sort">
+          <option value="desc">Newest First</option>
+          <option value="asc">Oldest First</option>
+        </select>
+      </div>
+    </div>
+    <div class="text-end mt-2">
+      <button id="filter-btn" class="btn btn-primary">Apply Filter</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-6">
+      <h4>📋 Expenses</h4>
+      <ul id="expenses-list" class="list-group"></ul>
+    </div>
+    <div class="col-md-6">
+      <h4>📊 Summary</h4>
+      <ul id="summary-list" class="list-group"></ul>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = 'http://localhost:3000';
+
+  async function fetchExpenses(filters = {}) {
+    const params = new URLSearchParams(filters);
+    const res = await fetch(`${API_BASE}/expenses?${params}`);
+    return res.json();
+  }
+
+  async function fetchSummary() {
+    const res = await fetch(`${API_BASE}/summary`);
+    return res.json();
+  }
+
+  async function addExpense(expense) {
+    const res = await fetch(`${API_BASE}/expenses`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(expense)
+    });
+    return res.json();
+  }
+
+  function renderExpenses(expenses) {
+    const list = document.getElementById('expenses-list');
+    list.innerHTML = '';
+    if (expenses.length === 0) {
+      list.innerHTML = '<li class="list-group-item">No expenses found.</li>';
+      return;
+    }
+    expenses.forEach(({ amount, category, description, date }) => {
+      const item = document.createElement('li');
+      item.className = 'list-group-item';
+      item.innerHTML = `<strong>$${parseFloat(amount).toFixed(2)}</strong> - ${category} - ${new Date(date).toLocaleDateString()}<br><small>${description}</small>`;
+      list.appendChild(item);
+    });
+  }
+
+  function renderSummary(summary) {
+    const list = document.getElementById('summary-list');
+    list.innerHTML = '';
+    if (summary.length === 0) {
+      list.innerHTML = '<li class="list-group-item">No summary available.</li>';
+      return;
+    }
+    summary.forEach(({ category, total }) => {
+      const item = document.createElement('li');
+      item.className = 'list-group-item';
+      item.textContent = `${category}: $${parseFloat(total).toFixed(2)}`;
+      list.appendChild(item);
+    });
+  }
+
+  async function refreshData(filters = {}) {
+    const expenses = await fetchExpenses(filters);
+    const summary = await fetchSummary();
+    renderExpenses(expenses);
+    renderSummary(summary);
+  }
+
+  document.getElementById('expense-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const expense = {
+      amount: parseFloat(document.getElementById('amount').value),
+      category: document.getElementById('category').value.trim(),
+      description: document.getElementById('description').value.trim(),
+      date: document.getElementById('date').value,
+    };
+    await addExpense(expense);
+    e.target.reset();
+    refreshData(getFilters());
+  });
+
+  function getFilters() {
+    return {
+      from: document.getElementById('from').value,
+      to: document.getElementById('to').value,
+      sort: document.getElementById('sort').value,
+    };
+  }
+
+  document.getElementById('filter-btn').addEventListener('click', () => {
+    refreshData(getFilters());
+  });
+
+  refreshData();
+</script>
+</body>
+</html>
